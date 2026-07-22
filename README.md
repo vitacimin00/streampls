@@ -18,8 +18,8 @@ node server.js
 ## Deploy ke VPS (Ubuntu/Debian)
 
 ```bash
-git clone https://github.com/USERNAMU/streampulse.git
-cd streampulse
+git clone https://github.com/vitacimin00/streampls.git
+cd streampls
 sudo bash vps-setup.sh
 ```
 
