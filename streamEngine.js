@@ -2,7 +2,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const https = require('https');
+const bcrypt = require('bcryptjs');
 const EventEmitter = require('events');
 
 try {
@@ -57,7 +57,7 @@ class StreamEngine extends EventEmitter {
 
   loadSettings() {
     const defaultSettings = {
-      passwordHash: '', // Hash SHA-256 for dashboard authentication
+      passwordHash: '', // bcrypt hash for dashboard authentication
       streamKey: '',
       rtmpUrl: 'rtmp://a.rtmp.youtube.com/live2',
       resolution: '1280x720',
@@ -82,7 +82,7 @@ class StreamEngine extends EventEmitter {
 
   hashPassword(password) {
     if (!password) return '';
-    return crypto.createHash('sha256').update(password).digest('hex');
+    return bcrypt.hashSync(String(password), 12);
   }
 
   hasPassword() {
@@ -90,25 +90,51 @@ class StreamEngine extends EventEmitter {
   }
 
   setPassword(newPassword) {
-    const hash = this.hashPassword(newPassword);
-    this.settings.passwordHash = hash;
+    this.settings.passwordHash = this.hashPassword(newPassword);
     this.saveSettings(this.settings);
     return true;
   }
 
   verifyPassword(inputPassword) {
-    if (!this.hasPassword()) return true; // If no password set yet
-    return this.hashPassword(inputPassword) === this.settings.passwordHash;
+    if (!this.hasPassword()) return true;
+    const hash = this.settings.passwordHash;
+    const input = String(inputPassword || '');
+
+    // Modern bcrypt hash
+    if (typeof hash === 'string' && hash.startsWith('$2')) {
+      try { return bcrypt.compareSync(input, hash); }
+      catch { return false; }
+    }
+
+    // Legacy SHA-256 (64 hex chars) - verify with timing-safe compare, then upgrade to bcrypt
+    if (typeof hash === 'string' && /^[a-f0-9]{64}$/i.test(hash)) {
+      try {
+        const sha = crypto.createHash('sha256').update(input).digest('hex');
+        const a = Buffer.from(sha, 'hex');
+        const b = Buffer.from(hash, 'hex');
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+          console.log('Upgrading legacy SHA-256 password hash to bcrypt...');
+          this.settings.passwordHash = this.hashPassword(input);
+          this.saveSettings(this.settings);
+          return true;
+        }
+      } catch (e) {
+        console.error('Legacy hash verify error:', e.message);
+      }
+    }
+    return false;
   }
 
   saveSettings(newSettings) {
-    // Preserve existing passwordHash unless explicitly provided as new plain password
-    if (newSettings.newPassword) {
+    // Convert plaintext newPassword into a bcrypt hash if provided
+    if (newSettings && newSettings.newPassword) {
       newSettings.passwordHash = this.hashPassword(newSettings.newPassword);
       delete newSettings.newPassword;
     }
     this.settings = { ...this.settings, ...newSettings };
-    fs.writeFileSync(this.configFile, JSON.stringify(this.settings, null, 2), 'utf8');
+    fs.writeFileSync(this.configFile, JSON.stringify(this.settings, null, 2), { encoding: 'utf8', mode: 0o600 });
+    // Ensure permissions even if the file already existed with different mode
+    try { fs.chmodSync(this.configFile, 0o600); } catch (_) { /* best-effort */ }
     this.emit('settingsUpdated', this.settings);
     return this.settings;
   }
@@ -151,8 +177,6 @@ class StreamEngine extends EventEmitter {
       throw new Error('Belum ada file audio di folder media/audio!');
     }
 
-    // Repeat playlist 500x — auto-restart handles true infinity
-    // Contoh: 10 lagu × 4 menit × 500 = ~33 jam, lalu auto-restart
     let content = '';
     const repeatCount = 500;
     for (let r = 0; r < repeatCount; r++) {
@@ -206,13 +230,12 @@ class StreamEngine extends EventEmitter {
     const playlistPathEscaped = playlistFilePath.replace(/\\/g, '/');
 
     const fpsVal = this.settings.fps || 30;
-    const gopSize = fpsVal * 2; // Exactly 2 seconds keyframe interval required by YouTube
+    const gopSize = fpsVal * 2;
 
     const audioFilter = this.settings.audioNormalization !== false
       ? 'dynaudnorm=f=75:g=25:p=0.95,aresample=async=1'
       : 'aresample=async=1';
 
-    // Build FFmpeg command — optimized for fast YouTube ingest startup
     this.ffmpegProcess = ffmpeg()
       .input(videoPathEscaped)
       .inputOptions([
@@ -277,13 +300,11 @@ class StreamEngine extends EventEmitter {
       const previousState = this.isStreaming;
       this.cleanupStream();
 
-      // Manual stop via SIGKILL — bukan error, jangan tampilkan error banner
       if (wasManualStop || err.message.includes('SIGKILL')) {
         this.emit('status', { isStreaming: false, message: 'Stream berhasil dihentikan.' });
         return;
       }
 
-      // Error tak terduga — tampilkan error dan coba auto-restart
       console.error('FFmpeg Stream Error:', err.message);
       this.emit('status', { isStreaming: false, error: `Stream error: ${err.message}` });
 
@@ -301,7 +322,6 @@ class StreamEngine extends EventEmitter {
       console.log('FFmpeg Stream finished/ended');
       this.cleanupStream();
 
-      // Auto-restart jika playlist habis (bukan manual stop)
       if (!this.manualStop && this.settings.streamKey) {
         console.log('Playlist habis! Auto-restart stream dalam 3 detik...');
         this.emit('status', { isStreaming: false, message: 'Playlist habis, auto-restart...' });
@@ -326,7 +346,7 @@ class StreamEngine extends EventEmitter {
   }
 
   stopStream() {
-    this.manualStop = true; // Tandai bahwa ini stop manual, jangan auto-restart
+    this.manualStop = true;
     if (!this.isStreaming || !this.ffmpegProcess) {
       return false;
     }
