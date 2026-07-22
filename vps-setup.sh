@@ -5,7 +5,7 @@
 #  Jalankan: sudo bash vps-setup.sh
 # ==============================================================================
 
-set -e  # Hentikan script jika ada error
+set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -33,17 +33,26 @@ info "Project directory: $SCRIPT_DIR"
 # STEP 1: System Update
 # ─────────────────────────────────────────────────────────────
 info "[1/7] Update sistem..."
-apt update -y && apt upgrade -y -qq
+apt-get update -y -qq
+apt-get upgrade -y -qq
 success "Sistem up-to-date"
 
 # ─────────────────────────────────────────────────────────────
-# STEP 2: Install FFmpeg & Tools
+# STEP 2: Install FFmpeg (versi terbaru via PPA) & Tools
 # ─────────────────────────────────────────────────────────────
-info "[2/7] Install FFmpeg, Git, Build Tools..."
-apt install -y ffmpeg git curl wget build-essential ufw 2>/dev/null
+info "[2/7] Install FFmpeg versi terbaru, Git, Build Tools..."
+apt-get install -y software-properties-common curl git wget build-essential ufw 2>/dev/null
+
+# Install FFmpeg terbaru via PPA (bukan versi lama dari apt default)
+# Ubuntu 20.04 default = FFmpeg 4.2.x (lama, ada bug)
+# PPA ini memberikan FFmpeg 6.x+ yang stabil
+add-apt-repository -y ppa:savoury1/ffmpeg4 2>/dev/null || true
+apt-get update -y -qq
+apt-get install -y ffmpeg 2>/dev/null
 
 command -v ffmpeg &>/dev/null || error "FFmpeg gagal terinstall!"
-success "FFmpeg: $(ffmpeg -version 2>&1 | head -n1 | cut -d' ' -f3)"
+FFMPEG_VER=$(ffmpeg -version 2>&1 | head -n1 | awk '{print $3}')
+success "FFmpeg: $FFMPEG_VER"
 
 # ─────────────────────────────────────────────────────────────
 # STEP 3: Install Node.js v20 LTS
@@ -51,7 +60,7 @@ success "FFmpeg: $(ffmpeg -version 2>&1 | head -n1 | cut -d' ' -f3)"
 info "[3/7] Install Node.js v20 LTS..."
 if ! command -v node &>/dev/null || [[ "$(node -v)" != v20* ]]; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 2>/dev/null
-  apt install -y nodejs 2>/dev/null
+  apt-get install -y nodejs 2>/dev/null
 fi
 success "Node.js: $(node -v) | NPM: $(npm -v)"
 
@@ -72,16 +81,16 @@ cd "$SCRIPT_DIR"
 mkdir -p media/audio media/video config logs
 
 # Install npm dependencies
-npm install --production --quiet
+npm install --omit=dev --quiet
 success "NPM dependencies installed"
 
 # ─────────────────────────────────────────────────────────────
 # STEP 6: Firewall
 # ─────────────────────────────────────────────────────────────
 info "[6/7] Konfigurasi firewall UFW..."
-ufw allow 22/tcp   comment 'SSH'          2>/dev/null || true
-ufw allow 80/tcp   comment 'HTTP'         2>/dev/null || true
-ufw allow 443/tcp  comment 'HTTPS'        2>/dev/null || true
+ufw allow 22/tcp   comment 'SSH'         2>/dev/null || true
+ufw allow 80/tcp   comment 'HTTP'        2>/dev/null || true
+ufw allow 443/tcp  comment 'HTTPS'       2>/dev/null || true
 ufw allow 3000/tcp comment 'StreamPulse' 2>/dev/null || true
 ufw --force enable 2>/dev/null || true
 success "Firewall: port 22, 80, 443, 3000 terbuka"
@@ -133,13 +142,13 @@ echo "    pm2 restart streampulse     — restart dashboard"
 echo "    pm2 stop streampulse        — stop dashboard"
 echo ""
 echo -e "  ${CYAN}▶ Upload media ke VPS (dari laptop kamu):${NC}"
-echo "    scp file.mp3 root@${SERVER_IP}:$SCRIPT_DIR/media/audio/"
+echo "    scp file.mp3  root@${SERVER_IP}:$SCRIPT_DIR/media/audio/"
 echo "    scp video.mp4 root@${SERVER_IP}:$SCRIPT_DIR/media/video/"
 echo ""
 echo -e "  ${CYAN}▶ Opsional — pasang domain + SSL (Nginx):${NC}"
 echo "    apt install -y nginx certbot python3-certbot-nginx"
 echo "    nano /etc/nginx/sites-available/streampulse"
-echo "    # isi dengan reverse proxy ke http://127.0.0.1:3000"
+echo "    # isi dengan: proxy_pass http://127.0.0.1:3000;"
 echo "    certbot --nginx -d yourdomain.com"
 echo ""
 echo "======================================================"
