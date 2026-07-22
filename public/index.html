@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamPulse 24/7 - YouTube Live Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-icon pulse">
+          <i data-lucide="radio"></i>
+        </div>
+        <div class="brand-text">
+          <h1>StreamPulse</h1>
+          <p>Live Stream Controller</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="live-indicator" class="live-status offline">
+          <span class="dot"></span>
+          <span id="live-status-text">OFFLINE</span>
+        </div>
+        <button id="btn-toggle-stream" class="btn btn-primary btn-glow">
+          <i data-lucide="play"></i> <span id="btn-stream-text">Start Live</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Grid Dashboard -->
+    <main class="dashboard-grid">
+
+      <!-- Left Column: Metrics, Controls & Telemetry -->
+      <section class="grid-col left-col">
+        
+        <!-- Live Preview Card -->
+        <div class="card preview-card">
+          <div class="card-header">
+            <h3><i data-lucide="tv"></i> Preview</h3>
+            <span class="quality-badge" id="preview-res">720p 30fps</span>
+          </div>
+          <div class="video-preview-wrapper">
+            <div class="overlay-graphics">
+              <div class="now-playing-banner" id="now-playing-banner">
+                <i data-lucide="music" class="spin-icon"></i>
+                <div class="track-info">
+                  <span class="track-label" id="track-status-label">NOW PLAYING</span>
+                  <span class="track-title" id="now-playing-title">Idle</span>
+                </div>
+              </div>
+              <div class="live-badge-overlay offline-badge" id="live-badge-overlay">PREVIEW</div>
+            </div>
+            <video id="bg-video-preview" autoplay loop muted playsinline></video>
+          </div>
+          
+          <div class="stream-quick-controls">
+            <button id="btn-open-settings" class="btn btn-secondary" title="Stream Settings">
+              <i data-lucide="settings"></i> Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- Telemetry Stats Cards -->
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-icon cpu-icon"><i data-lucide="cpu"></i></div>
+            <div class="metric-content">
+              <span class="metric-label">CPU</span>
+              <h4 id="stat-cpu">0%</h4>
+              <div class="progress-bar-bg"><div class="progress-fill" id="bar-cpu" style="width: 0%"></div></div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon ram-icon"><i data-lucide="hard-drive"></i></div>
+            <div class="metric-content">
+              <span class="metric-label">Memory</span>
+              <h4 id="stat-ram">0 / 0 GB</h4>
+              <div class="progress-bar-bg"><div class="progress-fill" id="bar-ram" style="width: 0%"></div></div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon disk-icon"><i data-lucide="database"></i></div>
+            <div class="metric-content">
+              <span class="metric-label">Storage</span>
+              <h4 id="stat-disk">0 / 30 GB</h4>
+              <div class="progress-bar-bg"><div class="progress-fill" id="bar-disk" style="width: 0%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Realtime Bitrate & Uptime Panel -->
+        <div class="card stream-stats-card">
+          <div class="card-header">
+            <h3><i data-lucide="activity"></i> Telemetry</h3>
+            <span class="time-counter" id="stat-uptime">Uptime: 00:00:00</span>
+          </div>
+          <div class="telemetry-grid">
+            <div class="telemetry-item">
+              <span class="t-label">Bitrate Output</span>
+              <span class="t-value" id="stat-bitrate">0 kbits/s</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-label">Encoder FPS</span>
+              <span class="t-value" id="stat-fps">0 FPS</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-label">Processed Frames</span>
+              <span class="t-value" id="stat-frames">0</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-label">RTMP Target</span>
+              <span class="t-value">YouTube Live</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Media Manager (Audio Playlist & Video Backgrounds) -->
+      <section class="grid-col right-col">
+        
+        <!-- Media Uploader Card -->
+        <div class="card upload-card">
+          <div class="card-header">
+            <h3><i data-lucide="upload-cloud"></i> Upload Media</h3>
+          </div>
+          <div class="dropzone" id="dropzone">
+            <i data-lucide="file-plus" class="upload-icon"></i>
+            <p class="drop-title">Tarik & Lepas File MP3 / MP4 di sini</p>
+            <p class="drop-sub">Atau klik tombol di bawah untuk memilih dari HP/Laptop</p>
+            <input type="file" id="file-input" multiple accept="audio/*,video/*" class="hidden-input">
+            <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
+              <i data-lucide="folder"></i> Pilih File Media
+            </button>
+          </div>
+          <div id="upload-progress-container" class="upload-progress-container hidden">
+            <div class="progress-bar-bg"><div class="progress-fill" id="upload-progress-bar" style="width: 0%"></div></div>
+            <span id="upload-status-text">Uploading...</span>
+          </div>
+        </div>
+
+        <!-- Video Background Manager -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i data-lucide="film"></i> Background Video (.MP4)</h3>
+            <span class="badge-count" id="video-count">0 File</span>
+          </div>
+          <div class="video-selector-grid" id="video-selector-grid">
+            <!-- Dynamic Video Items -->
+          </div>
+        </div>
+
+        <!-- Audio Playlist Manager -->
+        <div class="card playlist-card">
+          <div class="card-header">
+            <h3><i data-lucide="music"></i> Audio Playlist (.MP3)</h3>
+            <span class="badge-count" id="audio-count">0 Track</span>
+          </div>
+          <div class="playlist-container" id="playlist-list">
+            <!-- Dynamic Playlist Items -->
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- Modal Stream Settings -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3><i data-lucide="settings"></i> YouTube Stream Key & Settings</h3>
+          <button class="close-btn" id="btn-close-modal"><i data-lucide="x"></i></button>
+        </div>
+        <form id="settings-form" class="modal-body">
+          <div class="form-group">
+            <label for="input-stream-key">YouTube RTMP Stream Key <span class="req">*</span></label>
+            <div class="input-with-icon key-input-wrapper">
+              <i data-lucide="key" class="field-icon"></i>
+              <input type="password" id="input-stream-key" placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" required class="form-control" autocomplete="off">
+              <button type="button" id="btn-toggle-key" class="eye-btn" title="Tampilkan / Sembunyikan">
+                <i data-lucide="eye" id="icon-eye-key"></i>
+              </button>
+            </div>
+            <small class="help-text"><i data-lucide="info"></i> Stream Key dari YouTube Studio &rarr; Go Live &rarr; Stream Key.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="input-resolution">Resolusi Video</label>
+              <select id="input-resolution" class="form-control select-control">
+                <option value="1280x720">1280x720 (720p HD)</option>
+                <option value="1920x1080">1920x1080 (1080p Full HD)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="input-fps">Target Frame Rate</label>
+              <select id="input-fps" class="form-control select-control">
+                <option value="30">30 FPS (Rekomendasi VPS)</option>
+                <option value="60">60 FPS (High Smooth)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="input-vbitrate">Video Bitrate</label>
+              <select id="input-vbitrate" class="form-control select-control">
+                <option value="2500k">2500 Kbps (Standard Live)</option>
+                <option value="4000k">4000 Kbps (High Quality)</option>
+                <option value="6000k">6000 Kbps (Ultra HD)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="input-preset">FFmpeg CPU Preset</label>
+              <select id="input-preset" class="form-control select-control">
+                <option value="veryfast">veryfast (Hemat CPU VPS)</option>
+                <option value="ultrafast">ultrafast (Super Ringan)</option>
+                <option value="medium">medium (Kualitas Tinggi)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="input-audio-norm" checked>
+              <strong>Audio Loudness Normalization (EBU R128)</strong>
+            </label>
+            <small class="help-text">Otomatis menyamakan volume semua lagu MP3 agar konsisten dan tidak pecah.</small>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-settings">Batal</button>
+            <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Simpan Konfigurasi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Auth Modal (Initial Setup & Login) -->
+    <div id="auth-modal" class="modal-backdrop hidden">
+      <div class="modal-card auth-card">
+        <div class="modal-header">
+          <h3 id="auth-modal-title"><i data-lucide="lock"></i> Master Password Authentication</h3>
+        </div>
+        <form id="auth-form" class="modal-body">
+          <p id="auth-modal-subtitle" class="help-text">Masukkan master password untuk mengakses StreamPulse Dashboard.</p>
+          <div class="form-group">
+            <label for="input-auth-password" id="auth-label">Password</label>
+            <div class="input-with-icon">
+              <i data-lucide="key" class="field-icon"></i>
+              <input type="password" id="input-auth-password" placeholder="Masukkan password..." required class="form-control">
+            </div>
+          </div>
+          <div class="form-group hidden" id="auth-confirm-group">
+            <label for="input-auth-confirm">Konfirmasi Password</label>
+            <div class="input-with-icon">
+              <i data-lucide="shield-check" class="field-icon"></i>
+              <input type="password" id="input-auth-confirm" placeholder="Ulangi password..." class="form-control">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary btn-block" id="btn-auth-submit">Login</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Custom Stop Confirm Modal -->
+    <div id="confirm-modal" class="modal-backdrop hidden">
+      <div class="modal-card confirm-card">
+        <div class="confirm-body">
+          <div class="confirm-icon-wrap">
+            <i data-lucide="square" style="width:36px;height:36px;"></i>
+          </div>
+          <h3>Stop Live Stream?</h3>
+          <p>Stream akan langsung <strong>offline</strong> di YouTube. Penonton tidak bisa menonton lagi sampai kamu Start Live kembali.</p>
+        </div>
+        <div class="confirm-actions">
+          <button class="btn btn-secondary" id="btn-confirm-cancel">Batal</button>
+          <button class="btn btn-danger" id="btn-confirm-stop">
+            <i data-lucide="square"></i> Stop Live
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="error-banner" class="error-banner hidden">
+      <div class="error-banner-content">
+        <i data-lucide="alert-triangle"></i>
+        <span id="error-banner-text">Stream error — cek konsol untuk detail.</span>
+      </div>
+      <button class="error-dismiss" id="btn-dismiss-error" title="Tutup">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
