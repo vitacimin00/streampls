@@ -130,9 +130,22 @@ class StreamEngine extends EventEmitter {
       delete newSettings.newPassword;
     }
     this.settings = { ...this.settings, ...newSettings };
-    fs.writeFileSync(this.configFile, JSON.stringify(this.settings, null, 2), 'utf8');
+
+    // Atomic write: tulis ke temp file dulu, baru rename
+    // Supaya settings.json tidak corrupt kalau server crash di tengah write
+    const tmpFile = this.configFile + '.tmp';
+    try {
+      fs.writeFileSync(tmpFile, JSON.stringify(this.settings, null, 2), 'utf8');
+      fs.renameSync(tmpFile, this.configFile);
+    } catch (err) {
+      console.error('Gagal menyimpan settings:', err.message);
+      // Cleanup temp file kalau ada
+      try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
+    }
+
     this.emit('settingsUpdated', this.settings);
     return this.settings;
+
   }
 
   scanMedia() {
