@@ -5,14 +5,36 @@ const crypto = require('crypto');
 const https = require('https');
 const EventEmitter = require('events');
 
-try {
-  const ffmpegStatic = require('ffmpeg-static');
-  if (ffmpegStatic) {
-    ffmpeg.setFfmpegPath(ffmpegStatic);
-    console.log('FFmpeg binary path set to:', ffmpegStatic);
+const { execSync } = require('child_process');
+
+// Di Linux VPS → pakai system FFmpeg (/usr/bin/ffmpeg dari apt install)
+// ffmpeg-static npm binary sering SIGSEGV di beberapa kernel VPS
+// Di Windows → tetap pakai ffmpeg-static (tidak ada system ffmpeg)
+if (process.platform === 'linux') {
+  try {
+    const sysFFmpeg = execSync('which ffmpeg 2>/dev/null').toString().trim();
+    if (sysFFmpeg) {
+      ffmpeg.setFfmpegPath(sysFFmpeg);
+      console.log('FFmpeg (system):', sysFFmpeg);
+    }
+  } catch (e) {
+    // system ffmpeg tidak ada, fallback ke ffmpeg-static
+    try {
+      const ffmpegStatic = require('ffmpeg-static');
+      if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic);
+    } catch (e2) {}
   }
-} catch (e) {
-  console.log('Using system default FFmpeg binary');
+} else {
+  // Windows / Mac — pakai ffmpeg-static
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    if (ffmpegStatic) {
+      ffmpeg.setFfmpegPath(ffmpegStatic);
+      console.log('FFmpeg (static):', ffmpegStatic);
+    }
+  } catch (e) {
+    console.log('ffmpeg-static tidak ditemukan, pakai system FFmpeg');
+  }
 }
 
 class StreamEngine extends EventEmitter {
