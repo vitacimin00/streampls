@@ -22,6 +22,9 @@
   padding: 0;
 }
 
+/* Global utility — semua elemen dengan class hidden akan disembunyikan */
+.hidden { display: none !important; }
+
 body {
   background-color: var(--bg-dark);
   background-image: 
