@@ -261,7 +261,7 @@ class StreamEngine extends EventEmitter {
         `-g ${gopSize}`,
         `-keyint_min ${gopSize}`,
         '-sc_threshold 0',
-        '-fps_mode cfr',
+        '-vsync 1',
         '-pix_fmt yuv420p',
         '-c:a aac',
         `-b:a ${this.settings.audioBitrate || '190k'}`,
