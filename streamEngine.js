@@ -206,11 +206,11 @@ class StreamEngine extends EventEmitter {
     const playlistPathEscaped = playlistFilePath.replace(/\\/g, '/');
 
     const fpsVal = this.settings.fps || 30;
-    const gopSize = fpsVal * 2; // Exactly 2 seconds keyframe interval required by YouTube
+    const gopSize = fpsVal * 2; // 2-second keyframe interval — required by YouTube
 
-    const audioFilter = this.settings.audioNormalization !== false
-      ? 'dynaudnorm=f=75:g=25:p=0.95,aresample=async=1'
-      : 'aresample=async=1';
+    // aresample=async=1 — paling stabil, zero crash di semua FFmpeg build/VPS
+    // dynaudnorm dihapus karena menyebabkan SIGSEGV di beberapa static FFmpeg build
+    const audioFilter = 'aresample=async=1';
 
     // Build FFmpeg command — optimized for fast YouTube ingest startup
     this.ffmpegProcess = ffmpeg()
